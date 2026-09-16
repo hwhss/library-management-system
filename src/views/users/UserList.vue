@@ -1,15 +1,16 @@
-<script setup>
+﻿<script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Grid, List, Plus, Search, Refresh, Delete } from '@element-plus/icons-vue'
 import { getReaderList, toggleReaderStatus } from '../../api/user.js'
 import { hasOutstandingBorrow } from '../../utils/validators.js'
-import { getLibraryData } from '../../utils/libraryStorage.js'
+import { getBorrowList } from '../../api/borrow.js'
 import UserFormDialog from './UserFormDialog.vue'
 
 const loading = ref(false)
 const tableData = ref([])
 const total = ref(0)
+const allRecords = ref([])
 const viewMode = ref('table') // table / grid
 const selectedReaders = ref([]) // 选中的读者
 
@@ -78,8 +79,8 @@ async function handleToggleStatus(reader) {
 
   // 禁用前检查是否有未归还借阅
   if (isDisabling) {
-    const data = getLibraryData()
-    const hasOutstanding = hasOutstandingBorrow(reader.id, data.borrowRecords)
+    const records = allRecords.value
+  const hasOutstanding = hasOutstandingBorrow(reader.id, records)
     
     if (hasOutstanding) {
       try {
@@ -151,7 +152,9 @@ function getStatusClass(status) {
   return status === 'normal' ? 'status-active' : 'status-disabled'
 }
 
-onMounted(() => {
+onMounted(async () => {
+  const r = await getBorrowList({ pageSize: 1000 })
+  allRecords.value = r.data.list
   fetchReaders()
 })
 </script>

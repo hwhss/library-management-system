@@ -1,8 +1,8 @@
-<script setup>
+﻿<script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '../stores/user.js'
-import request from '../utils/request.js'
+import { supabase } from '../utils/supabase.js'
 
 const userStore = useUserStore()
 
@@ -58,29 +58,13 @@ function openPasswordDialog() {
 async function handleChangePassword() {
   const valid = await passwordFormRef.value.validate().catch(() => false)
   if (!valid) return
-
   try {
-    // 校验原密码是否正确
-    if (passwordForm.oldPassword !== userStore.userInfo.password) {
-      ElMessage.error('原密码不正确')
-      return
-    }
-
-    // 调用接口更新用户密码
-    const userId = userStore.userInfo.id
-    await request.put(`/users/${userId}`, {
-      ...userStore.userInfo,
-      password: passwordForm.newPassword
-    })
-
-    // 更新store中的密码
-    userStore.userInfo.password = passwordForm.newPassword
-    userStore.saveUserInfo()
-
+    const { error } = await supabase.auth.updateUser({ password: passwordForm.newPassword })
+    if (error) throw error
     ElMessage.success('密码修改成功')
     dialogVisible.value = false
   } catch (error) {
-    ElMessage.error(error.response?.data?.message || '密码修改失败')
+    ElMessage.error(error.message || '密码修改失败')
   }
 }
 

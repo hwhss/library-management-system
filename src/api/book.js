@@ -1,42 +1,46 @@
-import request from '../utils/request.js'
+import { supabase } from '../utils/supabase.js'
 
-/**
- * 获取图书列表
- * @param {Object} params 查询参数（name, category, page, pageSize）
- * @returns {Promise} 分页数据
- */
-export async function getBookList(params) {
-  const response = await request.get('/books', { params })
-  return response.data
+// 数据库下划线字段 -> 前端驼峰字段
+function toCamelBook(b) {
+  return b ? { ...b, createdAt: b.created_at } : b
+}
+function toSnakeBook(b = {}) {
+  const out = { ...b }
+  if (out.createdAt !== undefined) { out.created_at = out.createdAt; delete out.createdAt }
+  return out
 }
 
 /**
- * 新增图书
- * @param {Object} payload 图书数据
- * @returns {Promise} 新图书
+ * 获取图书列表（name模糊搜索、category筛选、分页）
  */
+export async function getBookList(params = {}) {
+  let q = supabase.from('books').select('*', { count: 'exact' })
+  if (params.name) q = q.ilike('name', `%${params.name}%`)
+  if (params.category && params.category !== '其他') q = q.eq('category', params.category)
+  if (params.page && params.pageSize) {
+    const from = (params.page - 1) * params.pageSize
+    q = q.range(from, from + params.pageSize - 1)
+  }
+  q = q.order('id', { ascending: false })
+  const { data, count, error } = await q
+  if (error) throw { response: { data: { message: error.message } } }
+  return { code: 200, message: '操作成功', data: { list: (data || []).map(toCamelBook), total: count || 0 } }
+}
+
 export async function createBook(payload) {
-  const response = await request.post('/books', payload)
-  return response.data
+  const { data, error } = await supabase.from('books').insert(toSnakeBook(payload)).select().single()
+  if (error) throw { response: { data: { message: error.message } } }
+  return { code: 200, message: '操作成功', data: toCamelBook(data) }
 }
 
-/**
- * 更新图书
- * @param {Number} id 图书ID
- * @param {Object} payload 图书数据
- * @returns {Promise} 更新后的图书
- */
 export async function updateBook(id, payload) {
-  const response = await request.put(`/books/${id}`, payload)
-  return response.data
+  const { data, error } = await supabase.from('books').update(toSnakeBook(payload)).eq('id', id).select().single()
+  if (error) throw { response: { data: { message: error.message } } }
+  return { code: 200, message: '操作成功', data: toCamelBook(data) }
 }
 
-/**
- * 删除图书
- * @param {Number} id 图书ID
- * @returns {Promise}
- */
 export async function deleteBook(id) {
-  const response = await request.delete(`/books/${id}`)
-  return response.data
+  const { error } = await supabase.from('books').delete().eq('id', id)
+  if (error) throw { response: { data: { message: error.message } } }
+  return { code: 200, message: '操作成功', data: true }
 }

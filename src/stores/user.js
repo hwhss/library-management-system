@@ -1,66 +1,62 @@
 import { defineStore } from 'pinia'
-
-const TOKEN_KEY = 'library_auth_token'
-const USER_INFO_KEY = 'library_user_info'
-
-const testAccounts = [
-  { username: 'admin', password: '123456', role: 'admin', registerTime: '2026-01-01' },
-  { username: 'user', password: '123456', role: 'user', registerTime: '2026-01-01' }
-]
+import { supabase } from '../utils/supabase.js'
 
 export const useUserStore = defineStore('user', {
   state: () => ({
-    token: '',
     userInfo: null
   }),
 
   getters: {
-    isLoggedIn: (state) => Boolean(state.token && state.userInfo)
+    isLoggedIn: (state) => Boolean(state.userInfo)
   },
 
   actions: {
-    login(username, password) {
-      const account = testAccounts.find((item) => item.username === username && item.password === password)
-
-      if (!account) {
-        return { success: false, message: '用户名或密码错误' }
+    async login(email, password) {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password
+      })
+      if (error) {
+        return { success: false, message: error.message }
       }
+      // 查角色
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, username')
+        .eq('id', data.user.id)
+        .single()
 
-      this.token = `mock-${account.role}-token`
       this.userInfo = {
-        username: account.username,
-        role: account.role,
-        registerTime: account.registerTime
+        uid: data.user.id,
+        username: profile?.username || email,
+        role: profile?.role || 'user'
       }
-      localStorage.setItem(TOKEN_KEY, this.token)
-      localStorage.setItem(USER_INFO_KEY, JSON.stringify(this.userInfo))
       return { success: true }
     },
 
-    restoreSession() {
-      const token = localStorage.getItem(TOKEN_KEY)
-      const savedUserInfo = localStorage.getItem(USER_INFO_KEY)
-
-      if (!token || !savedUserInfo) {
-        this.logout()
+    async restoreSession() {
+      const { data } = await supabase.auth.getSession()
+      if (!data.session) {
+        this.userInfo = null
         return false
       }
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, username')
+        .eq('id', data.session.user.id)
+        .single()
 
-      try {
-        this.token = token
-        this.userInfo = JSON.parse(savedUserInfo)
-        return true
-      } catch {
-        this.logout()
-        return false
+      this.userInfo = {
+        uid: data.session.user.id,
+        username: profile?.username || data.session.user.email,
+        role: profile?.role || 'user'
       }
+      return true
     },
 
-    logout() {
-      this.token = ''
+    async logout() {
+      await supabase.auth.signOut()
       this.userInfo = null
-      localStorage.removeItem(TOKEN_KEY)
-      localStorage.removeItem(USER_INFO_KEY)
     }
   }
 })

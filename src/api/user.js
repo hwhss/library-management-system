@@ -1,42 +1,50 @@
-import request from '../utils/request.js'
+import { supabase } from '../utils/supabase.js'
 
-/**
- * 获取读者列表
- * @param {Object} params 查询参数（keyword, page, pageSize）
- * @returns {Promise} 分页数据
- */
-export async function getReaderList(params) {
-  const response = await request.get('/users', { params })
-  return response.data
+function toCamel(r) {
+  return r ? { ...r, studentId: r.student_id, registerTime: r.register_time } : r
+}
+function toSnake(r = {}) {
+  const out = { ...r }
+  if (out.studentId !== undefined) { out.student_id = out.studentId; delete out.studentId }
+  if (out.registerTime !== undefined) { out.register_time = out.registerTime; delete out.registerTime }
+  return out
 }
 
 /**
- * 新增读者
- * @param {Object} payload 读者数据
- * @returns {Promise} 新读者
+ * 获取读者列表（keyword 模糊搜索、分页）
  */
+export async function getReaderList(params = {}) {
+  let q = supabase.from('readers').select('*', { count: 'exact' })
+  if (params.keyword) {
+    q = q.or(`name.ilike.%${params.keyword}%,phone.ilike.%${params.keyword}%,student_id.ilike.%${params.keyword}%`)
+  }
+  if (params.page && params.pageSize) {
+    const from = (params.page - 1) * params.pageSize
+    q = q.range(from, from + params.pageSize - 1)
+  }
+  q = q.order('id', { ascending: false })
+  const { data, count, error } = await q
+  if (error) throw { response: { data: { message: error.message } } }
+  return { code: 200, message: '操作成功', data: { list: (data || []).map(toCamel), total: count || 0 } }
+}
+
 export async function createReader(payload) {
-  const response = await request.post('/users', payload)
-  return response.data
+  const { data, error } = await supabase.from('readers').insert(toSnake(payload)).select().single()
+  if (error) throw { response: { data: { message: error.message } } }
+  return { code: 200, message: '操作成功', data: toCamel(data) }
 }
 
-/**
- * 更新读者
- * @param {Number} id 读者ID
- * @param {Object} payload 读者数据
- * @returns {Promise} 更新后的读者
- */
 export async function updateReader(id, payload) {
-  const response = await request.put(`/users/${id}`, payload)
-  return response.data
+  const { data, error } = await supabase.from('readers').update(toSnake(payload)).eq('id', id).select().single()
+  if (error) throw { response: { data: { message: error.message } } }
+  return { code: 200, message: '操作成功', data: toCamel(data) }
 }
 
-/**
- * 切换读者状态（启用/禁用）
- * @param {Number} id 读者ID
- * @returns {Promise} 更新后的读者
- */
 export async function toggleReaderStatus(id) {
-  const response = await request.patch(`/users/${id}/status`)
-  return response.data
+  // 先查当前状态再切换
+  const { data: cur } = await supabase.from('readers').select('status').eq('id', id).single()
+  const next = cur?.status === 'normal' ? 'disabled' : 'normal'
+  const { data, error } = await supabase.from('readers').update({ status: next }).eq('id', id).select().single()
+  if (error) throw { response: { data: { message: error.message } } }
+  return { code: 200, message: '操作成功', data: toCamel(data) }
 }

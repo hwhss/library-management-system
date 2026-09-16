@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user.js'
@@ -82,15 +82,15 @@ async function submitLogin() {
           </div>
         </div>
         <el-form ref="formRef" :model="form" :rules="rules" label-position="top" @keyup.enter="submitLogin">
-          <el-form-item label="用户名" prop="username">
-            <el-input v-model="form.username" :prefix-icon="User" placeholder="请输入用户名" autocomplete="username" size="large" aria-label="用户名输入框" />
+          <el-form-item label="邮箱" prop="username">
+            <el-input v-model="form.username" :prefix-icon="User" placeholder="请输入邮箱" autocomplete="username" size="large" aria-label="邮箱输入框" />
           </el-form-item>
           <el-form-item label="密码" prop="password">
             <el-input v-model="form.password" :prefix-icon="Lock" type="password" show-password placeholder="请输入密码" autocomplete="current-password" size="large" aria-label="密码输入框" />
           </el-form-item>
           <el-button type="primary" class="login-button" :loading="loading" size="large" @click="submitLogin" aria-label="点击登录">登录</el-button>
         </el-form>
-        <p class="login-hint">测试账号：admin / 123456　 user / 123456</p>
+        <p class="login-hint">测试账号：admin@demo.com / 123456　 user@demo.com / 123456</p>
       </el-card>
     </div>
   </main>

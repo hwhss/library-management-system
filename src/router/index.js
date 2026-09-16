@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+﻿import { createRouter, createWebHistory } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '../stores/user.js'
 import { getRouteAccessDecision } from './permission.js'
@@ -23,9 +23,9 @@ const routes = [
 
 const router = createRouter({ history: createWebHistory(), routes })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const userStore = useUserStore()
-  if (!userStore.userInfo) userStore.restoreSession()
+  if (!userStore.userInfo) await userStore.restoreSession()
   const decision = getRouteAccessDecision(to, userStore.userInfo)
   if (decision.message) ElMessage.warning(decision.message)
   return decision.allow ? true : decision.redirect

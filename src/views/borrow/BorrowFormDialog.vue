@@ -1,8 +1,7 @@
-<script setup>
+﻿<script setup>
 import { ref, reactive, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { createBorrow, getAvailableBooks, getAvailableReaders } from '../../api/borrow.js'
-import { getLibraryData } from '../../utils/libraryStorage.js'
 
 const props = defineProps({
   visible: { type: Boolean, default: false }
@@ -43,10 +42,9 @@ watch(dialogVisible, (val) => {
 
 async function loadOptions() {
   try {
-    // 直接从localStorage读取，筛选库存>0的图书和状态正常的读者
-    const data = getLibraryData()
-    availableBooks.value = data.books.filter(b => b.stock > 0)
-    availableReaders.value = data.users.filter(u => u.status === 'normal')
+    const [b, r] = await Promise.all([getAvailableBooks(), getAvailableReaders()])
+    availableBooks.value = b.data.list
+    availableReaders.value = r.data.list
   } catch (error) {
     ElMessage.error('加载选项失败')
   }
